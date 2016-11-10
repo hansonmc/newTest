@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jlc.api.dao.SweepstakeMapper">
+
+	<resultMap id="recordMap" type="com.jlc.api.dto.CJRecord">
+        <result property="boundPhone" column="bound_phone" />
+        <result property="phone" column="phone" />
+        <result property="detail" column="detail" />
+        <result property="cjDate" column="cj_date" />
+    </resultMap>
+    
+    <resultMap id="regulationMap" type="com.jlc.api.dto.CJRegulation">
+        <result property="id" column="id" />
+        <result property="name" column="name" />
+        <result property="status" column="status" />
+        <result property="createTime" column="create_time" />
+        <result property="eachAccount" column="each_account" />
+        <result property="totalAccount" column="total_account" />  
+    </resultMap>
+    
+    <resultMap id="regulationPrizeMap" type="com.jlc.api.dto.CJRegulationPrize">
+        <result property="id" column="id" />
+        <result property="regulationId" column="regulation_id" />
+        <result property="prizeId" column="prize_id" />
+        <result property="campaignId" column="campaign_id" />
+        <result property="createTime" column="create_time" />
+        <result property="account" column="account" />  
+    </resultMap>
+    
+    <resultMap id="pondMap" type="com.jlc.api.dto.CJPond">
+        <result property="id" column="id" />
+        <result property="serialNumber" column="serial_number" />
+        <result property="prizeId" column="prize_id" />
+        <result property="createDate" column="create_date" />
+        <result property="regulationId" column="regulation_id" />
+    </resultMap>
+
+	 <!-- 获取活动信息 -->
+    <select id="getActiviteById" resultType="com.jlc.api.dto.CJActivite" parameterType="long">
+    	 select a.id,a.starttime,a.endtime,a.status,a.regulation1_id regulation1Id,
+    	 a.regulation2_id regulation2Id,a.regulation3_id regulation3Id,
+    	 a.IS_DEL isDel,a.MESSAGE_TEMPLATE messageTemplate,a.IS_M isM,a.IS_Z isZ
+    	 from t_cj_activite a 
+    	 where a.id=#{id} and a.status = 1
+<!--     	 where a.id=#{id} and a.status = 1 and sysdate between a.STARTTIME and a.ENDTIME -->
+    </select>
+    
+    <!-- 获奖记录（前100条） -->
+    <select id="getWinRecordList" resultMap="recordMap" parameterType="long">
+      <![CDATA[
+    	 select u.bound_phone,r.phone,r.detail,r.cj_date from t_cj_record r,t_user u 
+    	 where r.user_id = u.id and r.cj_aid = #{aId} 
+    	 and r.detail <>'未中奖'
+    	 and r.status = 1 
+    	 and rownum <=100 order by r.cj_date desc
+       ]]>
+    </select>
+    
+    <!-- 活动当前参与人数 -->
+    <select id="getCJCountByAid" resultType="int" parameterType="long">
+      <![CDATA[
+    	 select nvl(count(*),0) from t_cj_record r where r.cj_aid=#{aId}
+       ]]>
+    </select>
+    
+    <!-- 获取规则信息并锁定 -->
+    <select id="getRegulationByIdForUpdate" resultMap="regulationMap" parameterType="long" >
+    	 select * from t_cj_regulation  where id = #{id} for update
+    </select>
+    
+    <!-- 获取规则对应的奖品设置列表 -->
+    <select id="getRegulationPrizeList" resultMap="regulationPrizeMap" parameterType="long">
+      <![CDATA[
+    	 select id, regulation_id, prize_id, campaign_id, create_time, account from t_cj_regulation_prize
+    	 where regulation_id=#{rid}
+       ]]>
+    </select>
+    
+    
+    <!-- 获取规则对应的10000条奖品列表 锁表-->
+    <select id="getPondList" resultMap="pondMap" parameterType="HashMap">
+      <![CDATA[
+    	 select id, serial_number, prize_id, create_date, regulation_id from t_cj_pond
+    	 where regulation_id=#{0} and rownum<=#{1} order by id 
+       ]]>
+    </select>
+    
+    <!-- 抽奖后删除已抽过的奖池记录 -->
+     <delete id="deletePonds" parameterType="HashMap">
+     	<![CDATA[
+     	delete
+			  from t_cj_pond ts
+			where ts.id in (
+			            select id
+			             from (
+			                      select  cjp.id
+			                          from t_cj_pond cjp
+			                        where regulation_id=#{0} 
+			                       order by id) cjp
+			             where  rownum<=#{1} 
+			             )
+        ]]>
+     </delete>
+     
+     <!-- 清洗奖池 -->
+     <delete id="clearPonds" parameterType="long">
+     	<![CDATA[
+     		delete from t_cj_pond p where (p.regulation_id,p.serial_number) in
+			  (select regulation_id,serial_number 
+			  from t_cj_pond 
+			  where regulation_id = #{regulationId}
+			  group by regulation_id,serial_number
+			   having count(*) > 1) 
+			  and rowid not in 
+			  (select min(rowid) 
+			  from t_cj_pond 
+			  where regulation_id = #{regulationId}
+			  group by regulation_id,serial_number 
+			  having count(*)>1)
+			  and regulation_id = #{regulationId}
+        ]]>
+     </delete>
+     
+     
+    
+    <!-- 更新规则状态 -->
+    <update id="updateRegulationStatus" parameterType="HashMap">
+    	<![CDATA[
+    	 update t_cj_regulation
+    	 set status = #{1}
+    	 where id=#{0}
+       ]]>
+    </update>
+
+	  <insert id="insertPond" parameterType="com.jlc.api.dto.CJPond">
+    	<![CDATA[
+    	 	insert into t_cj_pond
+		        (id, serial_number, prize_id, create_date, regulation_id)
+		    values
+		        (seq_t_cj_pond.nextval, #{serialNumber}, #{prizeId}, sysdate, #{regulationId})
+       ]]>
+    </insert>
+    
+    <insert id="insertPondBatch" parameterType="List">
+    	insert into t_cj_pond
+		        (id, serial_number, prize_id, create_date, regulation_id)
+		select seq_t_cj_pond.nextval, t.serialNumber , t.prizeId,sysdate, t.regulationId
+		from (
+    	<foreach collection="list" item="item" index="i" separator ="union all">
+    	 select #{item.serialNumber,jdbcType= VARCHAR } serialNumber,#{item.prizeId,jdbcType= VARCHAR } prizeId,
+    	  #{item.regulationId,jdbcType= NUMERIC } regulationId from dual
+    	</foreach>
+    	) t
+    </insert>
+    <!-- 根据活动规则获取对应规则奖池总数量 -->
+    <select id="getPondCountByRegulationId" resultType="int" parameterType="long">
+      <![CDATA[
+    	 select nvl(count(r.total_account),0) from t_cj_activite a,t_cj_regulation r 
+    	 where a.regulation1_id=r.id and r.id=#{regulationId}
+       ]]>
+    </select>
+    
+     <!-- 未注册用户抽奖中奖并注册后派发奖品 -->
+     <update id="distributePrizes" parameterType="java.util.Map">
+        update t_cj_record set user_id =#{memberId} , phone='',status=1 
+        where random_md5=#{randomMd5} and phone=#{phone}
+     </update>
+     
+     
+     
+     <!-- 修改红包中奖用户id -->
+     <update id="updateCJRecordUserId" parameterType="java.util.Map">
+        update t_cj_record set user_id =#{memberId} , phone=''
+        where random_md5=#{randomMd5} and phone=#{phone}
+     </update>
+     <!-- 修改奖品领取记录状态 -->
+     <update id="updateCJRecordStatus" parameterType="long">
+        update t_cj_record set status=1 
+        where id=#{rId}
+     </update>
+     <!-- 新增抽奖记录 -->
+     <insert id="addCjRecord" parameterType="com.jlc.api.dto.CJRecord">
+     <selectKey resultType="long" order="BEFORE" keyProperty="id"> 
+		 	SELECT SEQ_T_CJ_RECORD.NEXTVAL as id FROM DUAL
+		</selectKey> 
+		insert into T_CJ_RECORD(
+		     ID,
+		     CJ_AID,
+		     USER_ID,
+		     PRIZE_ID,
+		     CJ_DATE,
+		     DETAIL,
+		     SERIAL_NUMBER,
+		     PHONE,
+		     REGULATION_ID,
+		     STATUS,
+		     RANDOM_MD5
+		 )values(
+		     #{id},
+		     #{cjAid},
+		     #{userId},
+		     #{prizeId},
+		     sysdate,
+		     #{detail},
+		     #{serialNumber},
+		     #{phone},
+		     #{regulationId},
+		     #{status},
+		     #{randomMd5}
+		 )
+     </insert>
+     
+     <!-- 根据奖品id查询奖品信息 -->
+    <select id="getPrizeById" resultType="com.jlc.api.dto.CJPrize" parameterType="long">
+      <![CDATA[
+    	 select p.id,p.name name,p.type_code typeCode,p.amount amount,p.z_context zConText,p.m_context mConText from t_cj_prize p where p.id=#{id}
+       ]]>
+    </select>
+    
+    <!-- 获取奖池 并锁定-->
+    <select id="getPondByRid" resultType="com.jlc.api.dto.CJPond" parameterType="long">
+      <![CDATA[
+    	 select p.id,p.serial_number serialNumber,p.prize_id prizeId,p.regulation_id regulationId from t_cj_pond p 
+    	 where p.id = (select min(p.id) from t_cj_pond p where p.regulation_id=#{rId}) for update
+       ]]>
+    </select>
+    
+    <!-- 抽奖后删除已抽过的奖池记录 -->
+     <delete id="deletePondById" parameterType="long">
+        delete from t_cj_pond where id=#{id}
+     </delete>
+     
+     <!-- 获取奖池 -->
+    <select id="getMemberWinCount" resultType="int" parameterType="java.util.Map">
+      <![CDATA[
+    	 select count(*) from t_cj_record r 
+    	 where r.detail <>'未中奖' 
+    	 and r.regulation_id = #{rId}
+    	 and to_char(sysdate,'yymmdd') = to_char(r.cj_date,'yymmdd')
+       ]]>
+       <if test="memberId!=null and memberId !=''">
+         and r.user_id =#{memberId} 
+       </if>
+       <if test="phone!=null and phone!=''">
+         and r.phone =#{phone} 
+       </if>
+    </select>
+    
+    <!-- 获取规则信息 -->
+    <select id="getRegulationById" resultMap="regulationMap" parameterType="long">
+      <![CDATA[
+    	 select * from t_cj_regulation r where r.id = #{id}
+       ]]>
+    </select>
+    
+    <!-- 验证手机号是否注册，若已注册则返回用户id -->
+    <select id="checkPhone" resultType="string" parameterType="string">
+      <![CDATA[
+    	 select u.id from t_user u where u.bound_phone= #{phone}
+       ]]>
+    </select>
+    
+     <!-- 获取规则奖品关联信息 -->
+    <select id="getRegulationPrize" resultType="com.jlc.api.dto.CJRegulationPrize" parameterType="java.util.Map">
+      <![CDATA[
+    	 select rp.id,rp.CAMPAIGN_ID campaignId,rp.PRIZE_LEVEL prizeLevel from T_cj_regulation_prize rp where rp.prize_id=#{pId} and rp.regulation_id=#{rId}
+       ]]>
+    </select>
+    
+    <!-- 获取抽奖记录 -->
+    <select id="getRecordById" resultType="com.jlc.api.dto.CJRecord" parameterType="long">
+      <![CDATA[
+    	 select * from t_cj_record r where r.id=#{id}
+       ]]>
+    </select>
+    
+    <!-- 获取抽奖记录 -->
+    <select id="getRecordByRandomMd5AndPhone" resultType="com.jlc.api.dto.CJRecord" parameterType="java.util.Map">
+      <![CDATA[
+    	   select r.id,r.CJ_AID cjAid,r.status,r.prize_id prizeId,r.regulation_id regulationId from t_cj_record r 
+    	   where r.random_md5=#{randomMd5} and r.phone=#{phone} and r.status=0
+       ]]>
+    </select>
+    
+    <!-- 添加站内信-->
+	<insert id="addUserMessage" parameterType="com.jlc.api.dto.UserMessage">
+       <![CDATA[
+        	INSERT INTO t_user_message(id,USER_ID,TITLE,CONTENT,TYPE,READ_STATUS,OPT_TIME)
+            VALUES(seq_t_user_message.NEXTVAL,#{useriId},#{title},#{content},#{type},#{readStatus},sysdate)
+        ]]>
+	</insert>
+	
+	<!-- 更新用户可用抽奖机会 -->
+    <update id="updateMemberCJTimeByMemberId" parameterType="long">
+        update t_user set zp_times=zp_times-1 where zp_times >0 and id = #{memberId}
+    </update>
+    
+    <!-- 查询对应规则下已生成的奖池数量-->
+    <select id="getPondCountByRid" parameterType="long" resultType="int">
+       select nvl(count(*),0) from t_cj_pond p where p.regulation_id=#{rId}
+    </select>
+    
+    <!-- 获取规则关联和奖品信息-->
+    <select id="getRegulationAndPrize" parameterType="java.util.Map" resultType="com.jlc.api.dto.RegulationAndPrize">
+      select p.id prizeId,p.name prizeName,p.type_code typeCode,p.amount amount,p.m_context mConText,p.z_context zConText,rp.id RegulationPrizeId,
+      rp.campaign_id campaignId,rp.prize_level prizeLevel from t_cj_prize p,t_cj_regulation_prize rp 
+       where p.id = rp.prize_id and p.id=#{pId} and rp.regulation_id = #{rId}
+    </select>
+    
+    <!-- 获取字典code-->
+    <select id="getDictionaryCodeByName" parameterType="string" resultType="string">
+      select d.code from t_dic d where d.name=#{rId} and d.status = 1
+    </select>
+    
+    <!-- 具体获奖记录 -->
+    <select id="getWinRecordById" resultMap="recordMap" parameterType="long">
+      <![CDATA[
+    	 select u.bound_phone,r.phone,r.detail,r.cj_date from t_cj_record r,t_user u 
+    	 where r.user_id = u.id and r.id=#{id}
+       ]]>
+    </select>
+    
+     <!-- 获取进行中的活动 -->
+    <select id="getUesbleActivite" resultType="com.jlc.api.dto.CJActivite">
+    	 select * from( select a.id,a.starttime,a.endtime,a.status,a.regulation1_id regulation1Id,
+    	 a.regulation2_id regulation2Id,a.regulation3_id regulation3Id,a.is_M isM,a.is_Z isZ  from t_cj_activite a 
+    	 where a.status = 1 and sysdate between a.STARTTIME and a.ENDTIME order by id desc) where rownum=1
+    </select>
+    <select id="getRecordByMemberId" resultType="int" parameterType="HashMap">
+   		 select count(*) from t_cj_record  where user_id=#{0} and cj_aid =#{1}
+    </select>
+    
+    <select id="getZpActivityId" resultType="com.jlc.api.dto.CJActivite">
+    	 select a.id,a.starttime,a.endtime,a.status,a.regulation1_id regulation1Id,
+    	 a.regulation2_id regulation2Id,a.regulation3_id regulation3Id from t_cj_activite a 
+    	 where a.status = 1 and sysdate between a.STARTTIME and a.ENDTIME and type = 1
+    	 order by id desc
+    </select>
+    <select id="getAllUsedZpActivity" resultType="com.jlc.api.dto.CJActivite">
+     	select a.id,a.starttime,a.endtime,a.status,a.regulation1_id regulation1Id,
+    	 a.regulation2_id regulation2Id,a.regulation3_id regulation3Id,a.is_M isM,a.is_Z isZ  from t_cj_activite a 
+    	 where a.status = 1 and type=1 and sysdate between a.STARTTIME and a.ENDTIME order by id desc
+    </select>
+</mapper>

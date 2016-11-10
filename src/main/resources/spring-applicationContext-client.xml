@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans.xsd
+    http://code.alibabatech.com/schema/dubbo
+    http://code.alibabatech.com/schema/dubbo/dubbo.xsd">
+    <dubbo:application name="dubbo-service"/>
+    <dubbo:registry protocol="zookeeper" address="192.168.130.105:2181" timeout="10000"/>
+
+    <!-- <dubbo:registry address="139.217.24.150:20882"/> -->
+    <!-- 预发布 -->
+    <!-- 10.10.2.7:2181,10.10.2.7:2182,10.10.2.7:2183 -->
+    <!-- 139.217.24.150:20882 -->
+    <!-- 正式 -->
+    <!-- 10.10.10.114:2181,10.10.10.33:2182,10.10.10.34:2183 -->
+
+    <dubbo:reference id="packetsInfoWriteService" interface="com.jyd.packets.service.write.PacketsInfoWriteService"/>
+    <dubbo:reference id="packetsInfoReadService" interface="com.jyd.packets.service.read.PacketsInfoReadService" />
+
+    <dubbo:reference id="packetsActiveInfoWriteService"
+                     interface="com.jyd.packets.service.write.PacketsActiveInfoWriteService" />
+
+    <dubbo:reference id="packetsActiveInfoReadService"
+                     interface="com.jyd.packets.service.read.PacketsActiveInfoReadService" />
+
+   <dubbo:reference id="usePacketsReadService" interface="com.jyd.packets.service.read.UsePacketsReadService" /> 
+
+    <dubbo:reference id="usePacketsWriteService" interface="com.jyd.packets.service.write.UsePacketsWriteService" />
+
+    <dubbo:reference id="myStatisticalDataOutReadService"
+                     interface="com.jyd.packets.service.read.StatisticalDataOutReadService"/>
+
+    <dubbo:reference id="myStatisticalDetailsReadService"
+                     interface="com.jyd.packets.service.read.StatisticalDetailsReadService" />
+
+    <dubbo:reference id="myPacketsRollBackWriteService"
+                     interface="com.jyd.packets.service.write.PacketsRollBackWriteService" />
+     <dubbo:reference id="smsService" interface="com.jlc.mkt.sms.interfaceapi.service.SmsApiService" /> 
+
+    <dubbo:consumer timeout="10000">
+    </dubbo:consumer>
+</beans>
