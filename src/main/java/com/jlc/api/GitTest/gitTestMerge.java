@@ -5,7 +5,7 @@ package com.jlc.api.GitTest;
  */
 public class gitTestMerge {
     public static void main(String[] args) {
-        System.out.println("This is my GitTestMerge");
+        System.out.println("This is my GitTestMerge5555555555");
         System.out.println("This is my GitTestMerge02");
     }
 }
