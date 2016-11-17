@@ -18,8 +18,7 @@ public class MyDate {
     static SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     public static void main(String[] args) {
-        System.out.println( getWeek("2016-11-20"));;
-        System.out.println( getMondayOfWeek());
+        System.out.println( getWeekOfMonth());
     }
     public static void simpleDemo(){
         //当前日期
