@@ -7,17 +7,20 @@ import java.util.Date;
  */
 public class MyString {
     public static void main(String[] args) {
-        //myCharAt("abc");
-//        myGetChars("abcd");
-        //System.out.println(myRegionMatches());
-        //System.out.println("see you tonight".replace('e','o'));
-        //System.out.println("12345".subSequence(1,3).getClass().getName());
-//        String s2 = String.format("%1$tY/%1$tm/%1$td", new Date());
-//        System.out.println(s2);
-//        instanceStr();
-//        myCodePoint();
-//        myCopyValueOf();
+        myCharAt("abc");
+        myGetChars("abcd");
+        System.out.println(myRegionMatches());
+        System.out.println("see you tonight".replace('e','o'));
+        System.out.println("12345".subSequence(1,3).getClass().getName());
+        String s2 = String.format("%1$tY/%1$tm/%1$td", new Date());
+        System.out.println(s2);
+        instanceStr();
+        myCodePoint();
+        myCopyValueOf();
         myValueOf();
+        System.out.println(111111);
+        System.out.println(22222);
+        System.out.println(33333);
     }
 
     public static int myLength(char[] chars){
