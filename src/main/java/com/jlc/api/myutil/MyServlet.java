@@ -16,6 +16,9 @@ public class MyServlet extends HttpServlet {
         System.out.println(session = req.getSession(false));
         System.out.println(session.getId());
         System.out.println("inin");
+        System.out.println("servlet");
+        System.out.println("servlet");
+        System.out.println("servlet");
     }
 
 
